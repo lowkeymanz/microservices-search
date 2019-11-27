@@ -1,0 +1,11 @@
+.envrc
+search
+terraform.tfstate
+terraform.tfstate.backup
+.DS_Store
+.terraform
+search-Dockerfile.zip
+tags
+
+bench.txt
+old_bench_*.txt
