@@ -53,9 +53,12 @@ type registeredFormatter struct {
 
 var formatters []*registeredFormatter
 
-func findFmt(format string) FormatterFunc {
+// FindFmt searches available formatters registered
+// and returns FormaterFunc matched by given
+// format name or nil otherwise
+func FindFmt(name string) FormatterFunc {
 	for _, el := range formatters {
-		if el.name == format {
+		if el.name == name {
 			return el.fmt
 		}
 	}
@@ -161,6 +164,54 @@ func (f stepResult) line() string {
 	return fmt.Sprintf("%s:%d", f.feature.Path, f.step.Location.Line)
 }
 
+func (f stepResult) scenarioDesc() string {
+	if sc, ok := f.owner.(*gherkin.Scenario); ok {
+		return fmt.Sprintf("%s: %s", sc.Keyword, sc.Name)
+	}
+
+	if row, ok := f.owner.(*gherkin.TableRow); ok {
+		for _, def := range f.feature.Feature.ScenarioDefinitions {
+			out, ok := def.(*gherkin.ScenarioOutline)
+			if !ok {
+				continue
+			}
+
+			for _, ex := range out.Examples {
+				for _, rw := range ex.TableBody {
+					if rw.Location.Line == row.Location.Line {
+						return fmt.Sprintf("%s: %s", out.Keyword, out.Name)
+					}
+				}
+			}
+		}
+	}
+	return f.line() // was not expecting different owner
+}
+
+func (f stepResult) scenarioLine() string {
+	if sc, ok := f.owner.(*gherkin.Scenario); ok {
+		return fmt.Sprintf("%s:%d", f.feature.Path, sc.Location.Line)
+	}
+
+	if row, ok := f.owner.(*gherkin.TableRow); ok {
+		for _, def := range f.feature.Feature.ScenarioDefinitions {
+			out, ok := def.(*gherkin.ScenarioOutline)
+			if !ok {
+				continue
+			}
+
+			for _, ex := range out.Examples {
+				for _, rw := range ex.TableBody {
+					if rw.Location.Line == row.Location.Line {
+						return fmt.Sprintf("%s:%d", f.feature.Path, out.Location.Line)
+					}
+				}
+			}
+		}
+	}
+	return f.line() // was not expecting different owner
+}
+
 type basefmt struct {
 	out    io.Writer
 	owner  interface{}
@@ -255,16 +306,20 @@ func (f *basefmt) Summary() {
 			switch t := def.(type) {
 			case *gherkin.Scenario:
 				total++
+				if len(t.Steps) == 0 {
+					undefined++
+				}
 			case *gherkin.ScenarioOutline:
 				for _, ex := range t.Examples {
-					if examples, hasExamples := examples(ex); hasExamples {
-						total += len(examples.TableBody)
+					total += len(ex.TableBody)
+					if len(t.Steps) == 0 {
+						undefined += len(ex.TableBody)
 					}
 				}
 			}
 		}
 	}
-	passed = total
+	passed = total - undefined
 	var owner interface{}
 	for _, undef := range f.undefined {
 		if owner != undef.owner {
@@ -292,6 +347,9 @@ func (f *basefmt) Summary() {
 		passed -= undefined
 		parts = append(parts, yellow(fmt.Sprintf("%d undefined", undefined)))
 		steps = append(steps, yellow(fmt.Sprintf("%d undefined", len(f.undefined))))
+	} else if undefined > 0 {
+		// there may be some scenarios without steps
+		parts = append(parts, yellow(fmt.Sprintf("%d undefined", undefined)))
 	}
 	if len(f.skipped) > 0 {
 		steps = append(steps, cyan(fmt.Sprintf("%d skipped", len(f.skipped))))
@@ -314,7 +372,13 @@ func (f *basefmt) Summary() {
 	} else {
 		fmt.Fprintln(f.out, fmt.Sprintf("%d steps (%s)", nsteps, strings.Join(steps, ", ")))
 	}
-	fmt.Fprintln(f.out, elapsed)
+
+	elapsedString := elapsed.String()
+	if elapsed.Nanoseconds() == 0 {
+		// go 1.5 and 1.6 prints 0 instead of 0s, if duration is zero.
+		elapsedString = "0s"
+	}
+	fmt.Fprintln(f.out, elapsedString)
 
 	// prints used randomization seed
 	seed, err := strconv.ParseInt(os.Getenv("GODOG_SEED"), 10, 64)
@@ -324,15 +388,18 @@ func (f *basefmt) Summary() {
 	}
 
 	if text := f.snippets(); text != "" {
-		fmt.Fprintln(f.out, yellow("\nYou can implement step definitions for undefined steps with these snippets:"))
+		fmt.Fprintln(f.out, "")
+		fmt.Fprintln(f.out, yellow("You can implement step definitions for undefined steps with these snippets:"))
 		fmt.Fprintln(f.out, yellow(text))
 	}
 }
 
 func (s *undefinedSnippet) Args() (ret string) {
-	var args []string
-	var pos, idx int
-	var breakLoop bool
+	var (
+		args      []string
+		pos       int
+		breakLoop bool
+	)
 	for !breakLoop {
 		part := s.Expr[pos:]
 		ipos := strings.Index(part, "(\\d+)")
@@ -341,25 +408,20 @@ func (s *undefinedSnippet) Args() (ret string) {
 		case spos == -1 && ipos == -1:
 			breakLoop = true
 		case spos == -1:
-			idx++
 			pos += ipos + len("(\\d+)")
 			args = append(args, reflect.Int.String())
 		case ipos == -1:
-			idx++
 			pos += spos + len("\"([^\"]*)\"")
 			args = append(args, reflect.String.String())
 		case ipos < spos:
-			idx++
 			pos += ipos + len("(\\d+)")
 			args = append(args, reflect.Int.String())
 		case spos < ipos:
-			idx++
 			pos += spos + len("\"([^\"]*)\"")
 			args = append(args, reflect.String.String())
 		}
 	}
 	if s.argument != nil {
-		idx++
 		switch s.argument.(type) {
 		case *gherkin.DocString:
 			args = append(args, "*gherkin.DocString")
@@ -403,12 +465,13 @@ func (f *basefmt) snippets() string {
 
 			name := snippetNumbers.ReplaceAllString(step, " ")
 			name = snippetExprQuoted.ReplaceAllString(name, " ")
-			name = snippetMethodName.ReplaceAllString(name, "")
+			name = strings.TrimSpace(snippetMethodName.ReplaceAllString(name, ""))
 			var words []string
 			for i, w := range strings.Split(name, " ") {
-				if i != 0 {
+				switch {
+				case i != 0:
 					w = strings.Title(w)
-				} else {
+				case len(w) > 0:
 					w = string(unicode.ToLower(rune(w[0]))) + w[1:]
 				}
 				words = append(words, w)

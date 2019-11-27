@@ -15,7 +15,7 @@ from time to time.
 
 Package godog is the official Cucumber BDD framework for Golang, it merges
 specification and test documentation into one cohesive whole. The author
-is a core member of [cucumber team](https://github.com/cucumber).
+is a member of [cucumber team](https://github.com/cucumber).
 
 The project is inspired by [behat][behat] and [cucumber][cucumber] and is
 based on cucumber [gherkin3 parser][gherkin].
@@ -28,7 +28,8 @@ files.
 **Godog** acts similar compared to **go test** command, by using go
 compiler and linker tool in order to produce test executable. Godog
 contexts need to be exported the same way as **Test** functions for go
-tests.
+tests. Note, that if you use **godog** command tool, it will use `go`
+executable to determine compiler and linker.
 
 **Godog** ships gherkin parser dependency as a subpackage. This will
 ensure that it is always compatible with the installed version of godog.
@@ -204,8 +205,16 @@ composed.
 
 ### References and Tutorials
 
+- [cucumber-html-reporter](https://github.com/gkushang/cucumber-html-reporter)
+  may be used in order to generate **html** reports together with
+  **cucumber** output formatter. See the [following docker
+  image](https://github.com/myie/cucumber-html-reporter) for usage
+  details.
 - [how to use godog by semaphoreci](https://semaphoreci.com/community/tutorials/how-to-use-godog-for-behavior-driven-development-in-go)
 - see [examples](https://github.com/DATA-DOG/godog/tree/master/examples)
+- see extension [AssistDog](https://github.com/hellomd/assistdog), which
+  may have useful **gherkin.DataTable** transformations or comparison
+  methods for assertions.
 
 ### Documentation
 
@@ -226,7 +235,46 @@ See implementation examples:
 You may integrate running **godog** in your **go test** command. You can
 run it using go [TestMain](https://golang.org/pkg/testing/#hdr-Main) func
 available since **go 1.4**. In this case it is not necessary to have
-**godog** command installed. See the following example:
+**godog** command installed. See the following examples.
+
+The following example binds **godog** flags with specified prefix `godog`
+in order to prevent flag collisions.
+
+``` go
+var opt = godog.Options{
+	Output: colors.Colored(os.Stdout),
+	Format: "progress", // can define default values
+}
+
+func init() {
+	godog.BindFlags("godog.", flag.CommandLine, &opt)
+}
+
+func TestMain(m *testing.M) {
+	flag.Parse()
+	opt.Paths = flag.Args()
+
+	status := godog.RunWithOptions("godogs", func(s *godog.Suite) {
+		FeatureContext(s)
+	}, opt)
+
+	if st := m.Run(); st > status {
+		status = st
+	}
+	os.Exit(status)
+}
+```
+
+Then you may run tests with by specifying flags in order to filter
+features.
+
+```
+go test -v --godog.random --godog.tags=wip
+go test -v --godog.format=pretty --godog.random -race -coverprofile=coverage.txt -covermode=atomic
+```
+
+The following example does not bind godog flags, instead manually
+configuring needed options.
 
 ``` go
 func TestMain(m *testing.M) {
@@ -258,9 +306,9 @@ func TestMain(m *testing.M) {
 			break
 		}
 	}
-	status := RunWithOptions("godog", func(s *Suite) {
-		SuiteContext(s)
-	}, Options{
+	status := godog.RunWithOptions("godog", func(s *godog.Suite) {
+		godog.SuiteContext(s)
+	}, godog.Options{
 		Format: format,
 		Paths:     []string{"features"},
 	})
@@ -301,6 +349,14 @@ corruption or race conditions in the application.
 
 It is also useful to randomize the order of scenario execution, which you
 can now do with **--random** command option.
+
+**NOTE:** if suite runs with concurrency option, it concurrently runs
+every feature, not scenario per different features. This gives
+a flexibility to isolate state per feature. For example using
+**BeforeFeature** hook, it is possible to spin up costly service and shut
+it down only in **AfterFeature** hook and share the service between all
+scenarios in that feature. It is not advisable though, because you are
+risking having a state dependency.
 
 ## Contributions
 

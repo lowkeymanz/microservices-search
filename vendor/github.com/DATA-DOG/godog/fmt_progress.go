@@ -47,7 +47,7 @@ func (f *progress) Feature(ft *gherkin.Feature, p string, c []byte) {
 func (f *progress) Summary() {
 	left := math.Mod(float64(f.steps), float64(f.stepsPerRow))
 	if left != 0 {
-		if int(f.steps) > f.stepsPerRow {
+		if f.steps > f.stepsPerRow {
 			fmt.Fprintf(f.out, s(f.stepsPerRow-int(left))+fmt.Sprintf(" %d\n", f.steps))
 		} else {
 			fmt.Fprintf(f.out, " %d\n", f.steps)
@@ -58,6 +58,7 @@ func (f *progress) Summary() {
 	if len(f.failed) > 0 {
 		fmt.Fprintln(f.out, "\n--- "+red("Failed steps:")+"\n")
 		for _, fail := range f.failed {
+			fmt.Fprintln(f.out, s(2)+red(fail.scenarioDesc())+black(" # "+fail.scenarioLine()))
 			fmt.Fprintln(f.out, s(4)+red(strings.TrimSpace(fail.step.Keyword)+" "+fail.step.Text)+black(" # "+fail.line()))
 			fmt.Fprintln(f.out, s(6)+red("Error: ")+redb(fmt.Sprintf("%+v", fail.err))+"\n")
 		}

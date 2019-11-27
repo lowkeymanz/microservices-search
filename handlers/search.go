@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-go/statsd"
-	"github.com/building-microservices-with-go/chapter10-services-search/data"
+	"github.com/ScottAI/microservices-search/data"
 )
 
 type searchRequest struct {

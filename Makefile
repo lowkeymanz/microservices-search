@@ -5,10 +5,10 @@ staticcheck:
 	megacheck $(shell go list ./... | grep -v /vendor/)
 
 safesql:
-	safesql github.com/building-microservices-with-go/chapter11-services-search
+	safesql https://github.com/ScottAI/microservices-search
 
 benchmark:
-	go test -benchmem -benchtime=20s -bench=. github.com/building-microservices-with-go/chapter11-services-search/handlers | tee bench.txt
+	go test -benchmem -benchtime=20s -bench=. github.com/ScottAI/microservices-search/handlers | tee bench.txt
 	if [ -a old_bench.txt ]; then \
   	benchcmp -tolerance=5.0 old_bench.txt bench.txt; \
 	fi;
@@ -21,7 +21,7 @@ build_linux:
 	CGO_ENABLED=0 GOOS=linux go build -o ./search .
 
 build_docker:
-	docker build -t buildingmicroserviceswithgo/search .
+	docker build -t wkdljl/search .
 
 start_stack:
 	docker-compose up -d
@@ -40,7 +40,7 @@ test: unit benchmark staticcheck safesql integration
 circleintegration:
 	docker build -t circletemp -f ./IntegrationDockerfile .	
 	docker-compose up -d
-	docker run --network chapter11servicessearch_default -w /go/src/github.com/building-microservices-with-go/chapter11-services-search/features -e "MYSQL_CONNECTION=root:password@tcp(mysql:3306)/kittens" circletemp godog ./
+	docker run --network chapter11servicessearch_default -w /go/src/github.com/ScottAI/microservices-search/features -e "MYSQL_CONNECTION=root:password@tcp(mysql:3306)/kittens" circletemp godog ./
 	docker-compose stop
 	docker-compose rm -f
 

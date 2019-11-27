@@ -1,5 +1,38 @@
 # Change LOG
 
+**2018-11-16**
+- added formatter output test suite, currently mainly pretty format
+  tested.
+- these tests, helped to identify some output format issues.
+
+**2018-11-12**
+- proper go module support added for `godog` command build.
+- added build tests.
+
+**2018-10-27**
+- support go1.11 new compiler and linker changes for **godog** command.
+- support go1.11 modules and `go mod` builds.
+- `BindFlags` now has a prefix option for flags, so that `go test` command
+  can avoid flag name collisions.
+- `BindFlags` respect default options provided for binding, so that it
+  does not override predefined options when flags are bind, see #144.
+- Minor patch to support tag filters on example tables for
+  ScenarioOutline.
+- Minor patch for pretty printer, when scenario has no steps, comment
+  possition computation was in panic.
+
+**2018-03-04**
+- support go1.10 new compiler and linker changes for **godog** command.
+
+**2017-08-31**
+- added **BeforeFeature** and **AfterFeature** hooks.
+- failed multistep error is now prepended with a parent step text in order
+  to determine failed nested step.
+- pretty format now removes the step definition location package name in
+  comment next to step if the step definition matches tested package. If
+  step definition is imported from other package, full package name will
+  be printed.
+
 **2017-05-04**
 - added **--strict** option in order to fail suite when there are pending
   or undefined steps. By default, suite passes and treats pending or

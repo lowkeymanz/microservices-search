@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -123,7 +125,7 @@ func RunWithOptions(suite string, contextInitializer func(suite *Suite), opt Opt
 		fmt.Fprintln(os.Stderr, fmt.Errorf("format \"%s\" does not support concurrent execution", opt.Format))
 		return exitOptionError
 	}
-	formatter := findFmt(opt.Format)
+	formatter := FindFmt(opt.Format)
 	if nil == formatter {
 		var names []string
 		for name := range AvailableFormatters() {
@@ -143,17 +145,26 @@ func RunWithOptions(suite string, contextInitializer func(suite *Suite), opt Opt
 		return exitOptionError
 	}
 
+	// user may have specified -1 option to create random seed
+	randomize := opt.Randomize
+	if randomize == -1 {
+		randomize = makeRandomSeed()
+	}
+
 	r := runner{
 		fmt:           formatter(suite, output),
 		initializer:   contextInitializer,
 		features:      features,
-		randomSeed:    opt.Randomize,
+		randomSeed:    randomize,
 		stopOnFailure: opt.StopOnFailure,
 		strict:        opt.Strict,
 	}
 
 	// store chosen seed in environment, so it could be seen in formatter summary report
 	os.Setenv("GODOG_SEED", strconv.FormatInt(r.randomSeed, 10))
+	// determine tested package
+	_, filename, _, _ := runtime.Caller(1)
+	os.Setenv("GODOG_TESTED_PACKAGE", runsFromPackage(filename))
 
 	var failed bool
 	if opt.Concurrency > 1 {
@@ -161,10 +172,25 @@ func RunWithOptions(suite string, contextInitializer func(suite *Suite), opt Opt
 	} else {
 		failed = r.run()
 	}
+
+	// @TODO: should prevent from having these
+	os.Setenv("GODOG_SEED", "")
+	os.Setenv("GODOG_TESTED_PACKAGE", "")
 	if failed && opt.Format != "events" {
 		return exitFailure
 	}
 	return exitSuccess
+}
+
+func runsFromPackage(fp string) string {
+	dir := filepath.Dir(fp)
+	for _, gp := range gopaths {
+		gp = filepath.Join(gp, "src")
+		if strings.Index(dir, gp) == 0 {
+			return strings.TrimLeft(strings.Replace(dir, gp, "", 1), string(filepath.Separator))
+		}
+	}
+	return dir
 }
 
 // Run creates and runs the feature suite.

@@ -1,0 +1,21 @@
+# github.com/DATA-DOG/godog v0.7.13
+github.com/DATA-DOG/godog
+github.com/DATA-DOG/godog/colors
+github.com/DATA-DOG/godog/gherkin
+# github.com/DataDog/datadog-go v0.0.0-20170427165718-0ddda6bee211
+github.com/DataDog/datadog-go/statsd
+# github.com/building-microservices-with-go/chapter10-services-search v0.0.0-20170726112337-2917dd7c8c18
+github.com/building-microservices-with-go/chapter10-services-search/data
+# github.com/davecgh/go-spew v0.0.0-20160907170601-6d212800a42e
+github.com/davecgh/go-spew/spew
+# github.com/go-sql-driver/mysql v1.3.0
+github.com/go-sql-driver/mysql
+# github.com/pmezard/go-difflib v0.0.0-20151028094244-d8ed2627bdf0
+github.com/pmezard/go-difflib/difflib
+# github.com/sirupsen/logrus v1.0.0
+github.com/sirupsen/logrus
+# github.com/stretchr/objx v0.0.0-20140526180921-cbeaeb16a013
+github.com/stretchr/objx
+# github.com/stretchr/testify v1.1.4
+github.com/stretchr/testify/mock
+github.com/stretchr/testify/assert
