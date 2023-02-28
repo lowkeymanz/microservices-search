@@ -19,8 +19,9 @@ jobs:
       - run: 
           name: Install dependencies
           command: |
-            go get github.com/Masterminds/glide
-            glide up
+ #           go get github.com/Masterminds/glide
+ #           glide up
+            go mod tidy
       
       - run:
           name: Build application for linux
