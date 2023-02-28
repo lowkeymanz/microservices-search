@@ -20,7 +20,7 @@ jobs:
           name: Install dependencies
           command: |
             go get github.com/Masterminds/glide
-            glide install
+            glide up
       
       - run:
           name: Build application for linux
